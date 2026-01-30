@@ -1,0 +1,69 @@
+{
+    "schemes": [
+        {
+            "id": "ecourts",
+            "name": "eCourts Project",
+            "description": "A pan-India initiative to transform the judicial system through ICT enablement of courts.",
+            "benefits": [
+                "Online case status and cause lists",
+                "Virtual courts for traffic challans",
+                "e-Filing and e-Payment services"
+            ],
+            "url": "https://ecommitteesci.gov.in/"
+        },
+        {
+            "id": "tele-law",
+            "name": "Tele-Law",
+            "description": "Connects lawyers with citizens in rural areas through video conferencing/telephone at CSCs.",
+            "benefits": [
+                "Legal advice for marginalized communities",
+                "Accessible through Common Service Centers (CSCs)",
+                "Mobile App available"
+            ],
+            "url": "https://www.tele-law.in/"
+        },
+        {
+            "id": "fast-track",
+            "name": "Fast Track Special Courts (FTSCs)",
+            "description": "Dedicated courts for speedy disposal of cases related to rape and POCSO Act.",
+            "benefits": [
+                "Quicker justice delivery for sensitive cases",
+                "Specialized infrastructure"
+            ]
+        }
+    ],
+    "divisions": [
+        {
+            "id": "access-to-justice",
+            "name": "Access to Justice",
+            "description": "Focuses on legal empowerment of the poor and marginalized, implementing schemes like Tele-Law and Nyaya Bandhu."
+        },
+        {
+            "id": "appointments",
+            "name": "Appointments Division",
+            "description": "Deals with the appointment and transfer of Judges of the Supreme Court and High Courts."
+        },
+        {
+            "id": "ecourts-division",
+            "name": "eCourts Division",
+            "description": "Oversees the implementation of the eCourts Mission Mode Project."
+        }
+    ],
+    "faqs": [
+        {
+            "question": "How to check my case status?",
+            "answer": "You can check your case status on the eCourts Services website (services.ecourts.gov.in) or using the eCourts Services mobile app. You will need your CNR number or Case Number.",
+            "intent": "case_status"
+        },
+        {
+            "question": "What is Tele-Law?",
+            "answer": "Tele-Law is a service that connects citizens with panel lawyers for legal advice through video or audio conferencing, available at Common Service Centers (CSCs) or via the Tele-Law Mobile App.",
+            "intent": "info_telelaw"
+        },
+        {
+            "question": "How to pay traffic fine online?",
+            "answer": "You can pay traffic challans online through the Virtual Courts portal (vcourts.gov.in). Select your state and court to proceed with payment.",
+            "intent": "pay_challan"
+        }
+    ]
+}

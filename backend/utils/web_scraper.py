@@ -143,6 +143,122 @@ def scrape_ecourts_info() -> Optional[str]:
     
     return None
 
+
+def scrape_case_status(cnr: str) -> Optional[Dict]:
+    """
+    Attempt to scrape case status from eCourts by CNR number.
+    Falls back to mock data if scraping fails.
+    
+    CNR Format: XXYYNNNNNNNNNNNNNNNN (State + District + 14 digits + Year)
+    """
+    cache_key = f"case_{cnr}"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+    
+    # Validate CNR format (basic validation)
+    if not cnr or len(cnr) < 16:
+        return None
+    
+    try:
+        # eCourts case search URL
+        search_url = "https://services.ecourts.gov.in/ecourtindia_v6/"
+        
+        # Note: eCourts requires complex session handling and CAPTCHA
+        # This is a best-effort attempt that will likely be blocked
+        session = requests.Session()
+        
+        response = session.get(
+            search_url,
+            headers=HEADERS,
+            timeout=10,
+            verify=True
+        )
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Look for case status elements (these selectors are hypothetical)
+            # Real implementation would need to handle eCourts specific structure
+            case_info = {}
+            
+            # Try to find case details
+            case_table = soup.find('table', {'id': 'caseDetails'})
+            if case_table:
+                rows = case_table.find_all('tr')
+                for row in rows:
+                    cells = row.find_all('td')
+                    if len(cells) >= 2:
+                        key = clean_text(cells[0].get_text())
+                        value = clean_text(cells[1].get_text())
+                        case_info[key.lower().replace(' ', '_')] = value
+                
+                if case_info:
+                    case_info['cnr'] = cnr
+                    case_info['source'] = 'ecourts_live'
+                    set_cache(cache_key, case_info)
+                    return case_info
+                    
+    except Exception as e:
+        print(f"Error scraping eCourts case status: {e}")
+    
+    # Return None to indicate scraping failed - caller should use mock data
+    return None
+
+
+def scrape_njdg_stats() -> Optional[Dict]:
+    """
+    Scrape National Judicial Data Grid statistics.
+    Returns pending case counts and disposal rates.
+    """
+    cache_key = "njdg_stats"
+    cached = get_cached(cache_key)
+    if cached:
+        return cached
+    
+    try:
+        # NJDG main page
+        response = requests.get(
+            "https://njdg.ecourts.gov.in/njdgnew/index.php",
+            headers=HEADERS,
+            timeout=15,
+            verify=True
+        )
+        
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            stats = {
+                "source": "njdg_live",
+                "last_updated": datetime.now().strftime("%Y-%m-%d %H:%M")
+            }
+            
+            # Try to extract statistics from the page
+            # NJDG typically displays stats in specific containers
+            stat_containers = soup.find_all(['div', 'span'], class_=re.compile(r'stat|count|number'))
+            
+            for container in stat_containers:
+                text = clean_text(container.get_text())
+                # Look for numbers with "Cr" (crore) or large numbers
+                if any(keyword in text.lower() for keyword in ['pending', 'disposed', 'total', 'civil', 'criminal']):
+                    stats[text.split()[0].lower()] = text
+            
+            # Try to find the main pending cases number
+            pending_element = soup.find(text=re.compile(r'\d+[,\s]*\d*\s*(Cr|crore|lakh)', re.I))
+            if pending_element:
+                stats['total_pending_display'] = clean_text(pending_element)
+            
+            if len(stats) > 2:  # More than just source and timestamp
+                set_cache(cache_key, stats)
+                return stats
+                
+    except Exception as e:
+        print(f"Error scraping NJDG: {e}")
+    
+    # Return None to indicate scraping failed - caller should use mock data
+    return None
+
+
 def scrape_for_query(query: str) -> Dict[str, str]:
     """
     Scrape relevant information based on user query.

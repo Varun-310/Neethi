@@ -10,7 +10,12 @@ try:
     from backend.utils.intent import get_intent
     from backend.utils.vector_db import query_knowledge, initialize_db
     from backend.utils.ai_response import generate_response, check_ollama_status
-    from backend.utils.web_scraper import scrape_for_query, get_source_urls
+    from backend.utils.web_scraper import scrape_for_query, get_source_urls, scrape_case_status, scrape_njdg_stats
+    from backend.services import (
+        get_available_lawyers, simulate_lawyer_connection,
+        check_legal_aid_eligibility, EligibilityRequest,
+        get_mock_case_status, get_mock_njdg_stats
+    )
     AI_ENABLED = True
 except ImportError as e:
     print(f"Some dependencies missing: {e}")
@@ -22,6 +27,14 @@ except ImportError as e:
     def check_ollama_status(): return False
     def scrape_for_query(q): return {"content": "", "sources": []}
     def get_source_urls(q): return []
+    def scrape_case_status(cnr): return None
+    def scrape_njdg_stats(): return None
+    def get_available_lawyers(s=None): return []
+    def simulate_lawyer_connection(lid): return {"success": False}
+    def check_legal_aid_eligibility(r): return {"eligible": False}
+    def get_mock_case_status(cnr): return None
+    def get_mock_njdg_stats(): return {}
+    class EligibilityRequest: pass
     AI_ENABLED = False
 
 app = FastAPI(
@@ -205,6 +218,136 @@ Please try rephrasing your question or visit doj.gov.in for more information."""
         intent=intent,
         ai_generated=ai_generated
     )
+
+
+# ===============================
+# QUICK LINKS ENDPOINTS
+# ===============================
+
+@app.get("/case-status/{cnr}")
+async def get_case_status(cnr: str):
+    """
+    Lookup case status by CNR number.
+    Attempts live scraping, falls back to mock data.
+    """
+    # Validate CNR format
+    cnr = cnr.strip().upper()
+    if len(cnr) < 16:
+        raise HTTPException(status_code=400, detail="Invalid CNR format. CNR should be at least 16 characters.")
+    
+    # Try live scraping first
+    case_data = scrape_case_status(cnr)
+    
+    if case_data:
+        return {
+            "success": True,
+            "source": "live",
+            "data": case_data
+        }
+    
+    # Fall back to mock data
+    mock_data = get_mock_case_status(cnr)
+    if mock_data:
+        return {
+            "success": True,
+            "source": "demo",
+            "data": mock_data,
+            "note": "This is sample data for demonstration. For real case status, visit services.ecourts.gov.in"
+        }
+    
+    # No data found
+    return {
+        "success": False,
+        "message": f"Case with CNR {cnr} not found. Please verify the CNR number.",
+        "help": "You can check your case at services.ecourts.gov.in"
+    }
+
+
+@app.get("/tele-law/lawyers")
+async def list_lawyers(specialization: Optional[str] = None):
+    """
+    Get list of available Tele-Law lawyers.
+    """
+    lawyers = get_available_lawyers(specialization)
+    available_count = sum(1 for l in lawyers if l["available"])
+    
+    return {
+        "success": True,
+        "total": len(lawyers),
+        "available_now": available_count,
+        "lawyers": lawyers,
+        "note": "This is a demonstration of Tele-Law service. For real consultations, visit tele-law.in or your nearest CSC."
+    }
+
+
+@app.post("/tele-law/connect/{lawyer_id}")
+async def connect_to_lawyer(lawyer_id: str):
+    """
+    Simulate connecting to a lawyer.
+    """
+    result = simulate_lawyer_connection(lawyer_id)
+    return result
+
+
+class LegalAidCheckRequest(BaseModel):
+    annual_income: int
+    case_type: str
+    state: str
+    is_woman: bool = False
+    is_sc_st: bool = False
+    is_senior_citizen: bool = False
+    is_specially_abled: bool = False
+    is_in_custody: bool = False
+
+
+@app.post("/legal-aid/check")
+async def check_legal_aid(request: LegalAidCheckRequest):
+    """
+    Check eligibility for free legal aid under NALSA.
+    """
+    eligibility_request = EligibilityRequest(
+        annual_income=request.annual_income,
+        case_type=request.case_type,
+        state=request.state,
+        is_woman=request.is_woman,
+        is_sc_st=request.is_sc_st,
+        is_senior_citizen=request.is_senior_citizen,
+        is_specially_abled=request.is_specially_abled,
+        is_in_custody=request.is_in_custody
+    )
+    
+    result = check_legal_aid_eligibility(eligibility_request)
+    return {
+        "success": True,
+        **result
+    }
+
+
+@app.get("/njdg/stats")
+async def get_njdg_statistics():
+    """
+    Get National Judicial Data Grid statistics.
+    Attempts live scraping, falls back to mock data.
+    """
+    # Try live scraping first
+    live_stats = scrape_njdg_stats()
+    
+    if live_stats:
+        return {
+            "success": True,
+            "source": "live",
+            "data": live_stats
+        }
+    
+    # Fall back to mock data
+    mock_stats = get_mock_njdg_stats()
+    return {
+        "success": True,
+        "source": "demo",
+        "data": mock_stats,
+        "note": "For real-time statistics, visit njdg.ecourts.gov.in"
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

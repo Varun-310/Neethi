@@ -2,7 +2,7 @@
 
 **நீதி (Neethi)** - An intelligent legal assistant chatbot for the Department of Justice, Government of India.
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.1.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.8+-green)
 ![React](https://img.shields.io/badge/React-18+-61DAFB)
 ![FastAPI](https://img.shields.io/badge/FastAPI-Latest-009688)
@@ -19,16 +19,41 @@ Neethi is an AI-powered conversational assistant designed to help Indian citizen
 - 💬 **Natural Language Understanding** - Intent detection for query classification
 - 📱 **Responsive UI** - Modern React frontend with quick actions
 - 🔗 **Verified Sources** - Links to official government portals
+- 🏛️ **Interactive Quick Links** - Modal-based service integration (NEW!)
 
 ## 🏛️ Supported Services
 
-| Service | Description |
-|---------|-------------|
-| **eCourts** | Case status, e-Filing, e-Payment services |
-| **Tele-Law** | Free legal consultation via video call |
-| **Virtual Courts** | Traffic challan payment |
-| **NALSA** | Legal aid schemes and services |
-| **NJDG** | National Judicial Data Grid statistics |
+| Service | Description | Interactive Feature |
+|---------|-------------|---------------------|
+| **eCourts** | Case status, e-Filing, e-Payment | ✅ CNR Lookup Modal |
+| **Tele-Law** | Free legal consultation via video call | ✅ Lawyer Connect Modal |
+| **Virtual Courts** | Traffic challan payment | Chat-based |
+| **NALSA** | Legal aid schemes and services | ✅ Eligibility Checker |
+| **NJDG** | National Judicial Data Grid statistics | ✅ Stats Dashboard |
+
+## 🚀 Quick Links Feature
+
+Interactive modals accessible from the sidebar:
+
+### 🏛️ eCourts Case Status
+- Look up case details by CNR number
+- Demo CNR: `DLCT010012345672024`
+- Falls back to mock data when live scraping unavailable
+
+### 📱 Tele-Law Connect
+- Browse available lawyers with ratings and specializations
+- Simulate connecting to a lawyer
+- Shows availability status
+
+### ⚖️ NALSA Legal Aid Eligibility
+- Interactive eligibility checker form
+- Based on Legal Services Authorities Act, 1987
+- Supports priority categories (Women, SC/ST, Senior Citizens, etc.)
+
+### 📊 NJDG Statistics
+- Pending case statistics dashboard
+- Age-wise distribution
+- State-wise breakdown
 
 ## 🛠️ Tech Stack
 
@@ -42,14 +67,15 @@ Neethi is an AI-powered conversational assistant designed to help Indian citizen
 ### Frontend
 - **React 18** - UI library
 - **Vite** - Build tool
-- **CSS3** - Custom styling
+- **CSS3** - Custom styling with modal system
 
 ## 📁 Project Structure
 
 ```
 Neethi/
 ├── backend/
-│   ├── main.py              # FastAPI application
+│   ├── main.py              # FastAPI application + Quick Links endpoints
+│   ├── services.py          # Mock data & eligibility rules (NEW)
 │   ├── requirements.txt     # Python dependencies
 │   ├── data/
 │   │   └── knowledge_base.json
@@ -57,11 +83,11 @@ Neethi/
 │       ├── ai_response.py   # LLM integration
 │       ├── intent.py        # Intent detection
 │       ├── vector_db.py     # ChromaDB operations
-│       └── web_scraper.py   # Live data fetching
+│       └── web_scraper.py   # Live data + case status scrapers
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx          # Main React component
-│   │   └── index.css        # Styles
+│   │   ├── App.jsx          # Main React component + modals
+│   │   └── index.css        # Styles + modal system
 │   ├── package.json
 │   └── vite.config.js
 └── run_app.py               # Application launcher
@@ -75,56 +101,38 @@ Neethi/
 - Node.js 16+
 - [Ollama](https://ollama.ai/) (optional, for AI features)
 
-### Backend Setup
+### Quick Start
 
 ```bash
-# Navigate to backend directory
+# Clone and run both servers
+python run_app.py
+```
+
+This starts both the backend (port 8000) and frontend (port 5173).
+
+### Manual Setup
+
+#### Backend
+```bash
 cd backend
-
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# Windows:
-.\venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
-
-# Install dependencies
+.\venv\Scripts\activate  # Windows
 pip install -r requirements.txt
-
-# Run the server
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`
-
-### Frontend Setup
-
+#### Frontend
 ```bash
-# Navigate to frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run development server
 npm run dev
 ```
 
-The frontend will be available at `http://localhost:5173`
-
 ### Running with Ollama (Optional)
-
-For full AI capabilities, install and run Ollama:
 
 ```bash
 # Install Ollama from https://ollama.ai/
-
-# Pull a model (e.g., llama2)
 ollama pull llama2
-
-# Start Ollama service
 ollama serve
 ```
 
@@ -135,6 +143,11 @@ ollama serve
 | `/` | GET | API status and info |
 | `/health` | GET | Health check |
 | `/chat` | POST | Chat with the assistant |
+| `/case-status/{cnr}` | GET | Look up case by CNR number |
+| `/tele-law/lawyers` | GET | List available lawyers |
+| `/tele-law/connect/{id}` | POST | Connect to a lawyer |
+| `/legal-aid/check` | POST | Check NALSA eligibility |
+| `/njdg/stats` | GET | Get judicial statistics |
 
 ### Chat Request Example
 
@@ -146,14 +159,16 @@ POST /chat
 }
 ```
 
-### Response Example
+### Legal Aid Check Example
 
 ```json
+POST /legal-aid/check
 {
-  "response": "You can check your case status on eCourts...",
-  "sources": ["https://services.ecourts.gov.in"],
-  "intent": "case_status",
-  "ai_generated": true
+  "annual_income": 250000,
+  "case_type": "civil",
+  "state": "Delhi",
+  "is_woman": true,
+  "is_sc_st": false
 }
 ```
 
@@ -168,8 +183,12 @@ Uses ChromaDB with sentence transformers to semantically search through the know
 ### Web Scraping
 Automatically fetches latest information from official DoJ websites when queries contain keywords like "latest", "news", or "update".
 
-### Fallback Responses
-Pre-defined responses for common queries when AI is unavailable.
+### Quick Links Services
+Backend services module (`services.py`) providing:
+- Mock Tele-Law lawyer data
+- NALSA eligibility rules based on LSA Act, 1987
+- Mock case data for demonstration
+- NJDG statistics
 
 ## 📜 License
 
